@@ -6,8 +6,8 @@ Lista pública das pessoas de confiança que decidem o resultado dos **mercados 
 
 ## Como funciona
 
-1. Quem quer ser oráculo entra nesta lista, com a **chave Nostr** (`npub`) e a prova de que controla essa chave.
-2. Um mantenedor do repositório revisa e aprova a entrada.
+1. Quem mantém o repositório coloca nesta lista as **chaves Nostr** (`npub`) de pessoas de confiança. Não é preciso GitHub, prova nem cadastro da pessoa.
+2. Quem quiser pedir a entrada por conta própria também pode, com uma prova assinada (veja abaixo), e o mantenedor revisa.
 3. Cada mercado que usa comitê **fixa uma cópia da lista** na hora em que é criado. Quem entra ou sai depois não muda um mercado em andamento.
 4. Depois do fechamento do mercado, cada oráculo do comitê **assina o resultado** com a própria chave Nostr, com um link de evidência.
 5. Quando a **maioria do comitê** assina o mesmo resultado, ele vira a proposta de resolução do mercado, que segue para a janela de contestação e a liquidação.
@@ -16,11 +16,14 @@ As assinaturas são públicas e qualquer pessoa pode conferi-las. Ninguém preci
 
 ## Como virar oráculo
 
-Veja o passo a passo em [CONTRIBUTING.md](CONTRIBUTING.md). Em resumo: você assina uma mensagem com a sua chave Nostr dizendo quem é no GitHub, gera a sua linha com `scripts/make_entry.py` e abre uma pull request. Uma verificação automática confere a assinatura antes de um mantenedor olhar.
+Há dois caminhos, descritos em [CONTRIBUTING.md](CONTRIBUTING.md):
+
+- **Convite do mantenedor** (o mais simples): o mantenedor adiciona a sua `npub` com `python scripts/add_npub.py npub1... --name "Nome"`. Você não faz nada.
+- **Pedido seu**: você assina uma mensagem com a sua chave Nostr dizendo quem é no GitHub, gera a sua linha com `scripts/make_entry.py` e abre uma pull request. Uma verificação automática confere a assinatura antes de o mantenedor olhar.
 
 ## Regras
 
-- **Uma entrada por pessoa**, com a própria chave e o próprio usuário do GitHub.
+- **Uma chave por pessoa.** Quem pede por conta própria tem uma entrada por usuário do GitHub; no convite, o mantenedor garante que não há duas chaves da mesma pessoa.
 - **Conflito de interesse:** não decida um mercado em que você apostou, nem um que você criou. As assinaturas são públicas e a contestação existe para isso.
 - **Evidência:** cada assinatura deve trazer um link da fonte que sustenta o resultado.
 - **Só o resultado que a fonte mostra:** nada de opinião. Em dúvida real, o resultado correto é "anular", e o mercado é reembolsado.
@@ -38,21 +41,24 @@ Quem mantém este repositório aprova as pull requests. O mantenedor confere se:
 
 - a verificação automática passou;
 - a pessoa é identificável e tem um histórico público que sustenta a confiança;
-- não há sinal de várias entradas da mesma pessoa.
+- não há sinal de várias entradas da mesma pessoa;
+- só os mantenedores (campo `maintainers`) adicionam entradas sem prova.
 
 ## Formato do `oracles.json`
 
 ```json
 {
   "version": 1,
+  "maintainers": ["usuario-do-github-do-mantenedor"],
   "oracles": [
+    { "npub": "npub1...", "added": "2026-11-06", "name": "Convidado pelo mantenedor" },
     {
       "npub": "npub1...",
-      "github": "usuario",
       "added": "2026-11-06",
-      "name": "Nome (opcional)",
-      "links": ["https://exemplo.com/voce"],
-      "proof": { "...": "evento Nostr assinado, gerado como no CONTRIBUTING.md" }
+      "github": "usuario",
+      "proof": { "...": "evento Nostr assinado, gerado como no CONTRIBUTING.md" },
+      "name": "Quem pediu por conta própria",
+      "links": ["https://exemplo.com/voce"]
     }
   ]
 }
@@ -61,17 +67,16 @@ Quem mantém este repositório aprova as pull requests. O mantenedor confere se:
 | Campo | Obrigatório | Regra |
 |---|---|---|
 | `npub` | sim | chave pública no formato `npub1...` |
-| `github` | sim | usuário do GitHub de quem pede a entrada |
 | `added` | sim | data no formato `AAAA-MM-DD` |
-| `proof` | sim | evento Nostr assinado pela chave (kind 30078) com as tags `d`, `repo` e `github` |
+| `github` e `proof` | juntos, ou nenhum | só para quem pede por conta própria: usuário do GitHub e evento Nostr assinado pela chave (kind 30078) com as tags `d`, `repo` e `github` |
 | `name` | não | até 60 caracteres |
 | `links` | não | até 5 endereços `https://` |
 
-A prova de posse impede que alguém cadastre a chave de outra pessoa: o evento assinado nomeia o usuário do GitHub e este repositório, e só quem tem a chave consegue produzi-lo.
+A prova de posse impede que **um estranho** cadastre a chave de outra pessoa: o evento assinado nomeia o usuário do GitHub e este repositório, e só quem tem a chave consegue produzi-lo. Entradas sem prova só valem se vierem de um mantenedor, e a lista de mantenedores que conta é a da branch de destino, não a da própria pull request.
 
 ## Verificação automática
 
-`scripts/verify.py` valida o arquivo e confere cada prova (assinatura BIP-340, sem dependências além do Python). Em pull requests ele também exige que **só as entradas que o autor adicionou ou alterou** pertençam a ele. Para rodar localmente:
+`scripts/verify.py` valida o arquivo e confere cada prova (assinatura BIP-340, sem dependências além do Python). Em pull requests ele também exige que cada entrada adicionada ou alterada venha de quem pode: o dono da prova (usuário do GitHub) ou um mantenedor. Para rodar localmente:
 
 ```bash
 python scripts/verify.py oracles.json

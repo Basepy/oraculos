@@ -1,5 +1,21 @@
 # Como virar oráculo
 
+Há dois caminhos.
+
+## Convite do mantenedor (sem GitHub, sem prova)
+
+Quem mantém o repositório (campo `maintainers` do `oracles.json`) adiciona as `npub` de pessoas de confiança:
+
+```bash
+python scripts/add_npub.py npub1... --name "Nome"
+python scripts/add_npub.py npub1... npub1...
+python scripts/verify.py oracles.json
+```
+
+O script confere a chave, recusa repetidas, grava a data e valida o arquivo. Depois é abrir a pull request (o mantenedor é o autor, então a verificação aceita). Quem foi convidado não precisa fazer nada.
+
+## Pedir a entrada por conta própria (com prova)
+
 Você precisa de uma **chave Nostr** e de uma extensão de navegador que assine eventos (NIP-07), como Alby ou nos2x. Nenhum passo pede a sua chave privada: quem assina é a extensão.
 
 ## 1. Assine a sua prova
