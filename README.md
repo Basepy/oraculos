@@ -78,14 +78,15 @@ python scripts/verify.py oracles.json
 python -m unittest discover -s tests
 ```
 
-## Configuração recomendada do repositório
+## Configuração do repositório
 
-Estas regras ficam no GitHub, em *Settings › Branches*, para a branch `main`, e não nos arquivos:
+Estas regras ficam no GitHub, em *Settings › Branches*, na branch `main`, e não nos arquivos. Hoje estão assim:
 
-- exigir pull request antes de mesclar, com **pelo menos 1 aprovação** (2 quando houver mais de um mantenedor);
-- exigir que a verificação `verify` passe;
-- exigir revisão dos donos do código (`.github/CODEOWNERS`);
-- bloquear push forçado e apagar a branch;
-- opcional: exigir commits assinados.
+- a verificação `verify` precisa passar antes de qualquer mudança entrar;
+- push forçado e exclusão da branch estão bloqueados, então o histórico da lista não é reescrito;
+- **não se exige aprovação**, porque há um só mantenedor. A aprovação é por convenção: quem mantém o repositório revisa e mescla as pull requests;
+- as regras não valem para quem administra o repositório.
+
+Quando houver um segundo mantenedor, o passo seguinte é exigir **pelo menos 1 aprovação** e a revisão dos donos do código (`.github/CODEOWNERS`), e opcionalmente commits assinados.
 
 Quem controla a aprovação controla quem pode decidir os mercados. Por isso o histórico fica público e cada mercado guarda a sua própria cópia da lista.
