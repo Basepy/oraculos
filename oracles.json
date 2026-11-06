@@ -3,5 +3,11 @@
   "maintainers": [
     "Basepy"
   ],
-  "oracles": []
+  "oracles": [
+    {
+      "npub": "npub157v53ahyyxh4mp38v363chz9lrrw8um9m0tyhqzjujz8m4pmr42s9sk9u8",
+      "added": "2026-11-06",
+      "name": "Base"
+    }
+  ]
 }
