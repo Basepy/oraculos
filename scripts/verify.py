@@ -1,16 +1,23 @@
 #!/usr/bin/env python3
-"""Validate oracles.json and the proof of key ownership of every oracle.
+"""Validate oracles.json.
 
 Usage:
     python scripts/verify.py oracles.json
     python scripts/verify.py oracles.json --base base.json --author github-user
 
-With --base and --author (used for pull requests), every entry that was added
-or changed compared to the base file must belong to the pull request author.
+There are two kinds of entry:
 
-Only the Python standard library is used. Each entry carries a proof: a Nostr
-event signed by the oracle key (BIP-340) that names the GitHub user and this
-repository, so nobody can register a key they do not control.
+* curated: just the npub (and a name). Only a maintainer, listed in the
+  "maintainers" field of the BASE file, may add or change these;
+* self-registered: an npub plus "github" and "proof", a Nostr event signed by
+  the oracle key (BIP-340) that names the GitHub user and this repository.
+  The signature is checked, and in a pull request the author must be that
+  GitHub user (or a maintainer), so nobody can register a key they do not control.
+
+With --base and --author (used for pull requests), every entry that was added
+or changed compared to the base file must pass the rule of its kind.
+
+Only the Python standard library is used.
 """
 
 import argparse
@@ -23,8 +30,8 @@ import sys
 REPO = "Basepy/oraculos"
 PROOF_KIND = 30078  # NIP-78: application-specific data
 PROOF_D_TAG = "satslottu-oracle-registration"
-REQUIRED_KEYS = {"npub", "github", "added", "proof"}
-OPTIONAL_KEYS = {"name", "links"}
+REQUIRED_KEYS = {"npub", "added"}
+OPTIONAL_KEYS = {"name", "links", "github", "proof"}
 GITHUB_RE = re.compile(r"^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$")
 HEX = frozenset("0123456789abcdef")
 MAX_NAME = 60
@@ -221,6 +228,8 @@ def _check_entry(entry, index):
     github = entry.get("github")
     if "github" in entry and not (isinstance(github, str) and GITHUB_RE.match(github)):
         problems.append(f"{where}: github is not a valid user name")
+    if ("github" in entry) != ("proof" in entry):
+        problems.append(f"{where}: 'github' and 'proof' go together (a curated entry has neither)")
     added = entry.get("added")
     if "added" in entry:
         try:
@@ -239,7 +248,7 @@ def _check_entry(entry, index):
         and all(isinstance(link, str) and link.startswith("https://") and len(link) <= 200 for link in links)
     ):
         problems.append(f"{where}: links must be at most {MAX_LINKS} https URLs")
-    if not problems:
+    if not problems and "proof" in entry:
         problems += [f"{where}: {p}" for p in check_proof(entry, public_key)]
     return problems, public_key
 
@@ -249,6 +258,9 @@ def validate(roster, base=None, author=None):
     if not (isinstance(roster, dict) and roster.get("version") == 1 and isinstance(roster.get("oracles"), list)):
         return ['the file must be {"version": 1, "oracles": [...]}']
     problems, seen_keys, seen_users = [], set(), set()
+    maintainers = roster.get("maintainers", [])
+    if not (isinstance(maintainers, list) and all(isinstance(m, str) and GITHUB_RE.match(m) for m in maintainers)):
+        problems.append("maintainers must be a list of GitHub user names")
     for index, entry in enumerate(roster["oracles"]):
         entry_problems, public_key = _check_entry(entry, index)
         problems += entry_problems
@@ -262,13 +274,23 @@ def validate(roster, base=None, author=None):
                 problems.append(f"oracles[{index}]: github user '{entry['github']}' is listed twice")
             seen_users.add(user)
     if base is not None and author:
+        base_maintainers = {m.lower() for m in base.get("maintainers", []) if isinstance(m, str)}
+        is_maintainer = author.lower() in base_maintainers
+        # Se a base ainda não tem o campo (primeira vez), a pull request que o cria passa pela
+        # revisão humana; depois disso só um mantenedor da base muda a lista.
+        changed_list = roster.get("maintainers", []) != base.get("maintainers", [])
+        if "maintainers" in base and changed_list and not is_maintainer:
+            problems.append(f"the maintainers list can only be changed by a maintainer, not by '{author}'")
         old = {e.get("npub"): e for e in base.get("oracles", []) if isinstance(e, dict)}
         for index, entry in enumerate(roster["oracles"]):
-            if isinstance(entry, dict) and old.get(entry.get("npub")) != entry:
-                if str(entry.get("github", "")).lower() != author.lower():
-                    problems.append(
-                        f"oracles[{index}]: added or changed by '{author}' but belongs to '{entry.get('github')}'"
-                    )
+            if not isinstance(entry, dict) or old.get(entry.get("npub")) == entry or is_maintainer:
+                continue
+            if "proof" not in entry:
+                problems.append(f"oracles[{index}]: only a maintainer can add or change an entry without proof")
+            elif str(entry.get("github", "")).lower() != author.lower():
+                problems.append(
+                    f"oracles[{index}]: added or changed by '{author}' but belongs to '{entry.get('github')}'"
+                )
     return problems
 
 
